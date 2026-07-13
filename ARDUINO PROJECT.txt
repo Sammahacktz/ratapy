@@ -1,0 +1,6 @@
+ARDUINO PROJECT:
+
+- remove install section in tui and replace with find update / update
+- github link https://github.com/Sammahacktz/ratapy.git testing next
+- add animations to NEOpixel (links, fade, circle)
+- write a COMSO animatronocs class

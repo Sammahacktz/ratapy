@@ -1,0 +1,68 @@
+[project]
+# Matches the import package and the repo. ("rata" is taken on PyPI, and the
+# mismatch made `pip install "ratapy @ git+..."` fail on the metadata name.)
+name = "ratapy"
+version = "1.0.0"
+description = "Raspberry-pi Attached Things -- dynamic control of Arduinos and Pi devices from Python."
+authors = [
+    {name = "Charlie-Luis Reichelt", email = "charlie-luis.reichelt@tu-dresden.de"}
+]
+readme = "README.md"
+# 3.11 is what Debian 12 / Raspberry Pi OS Bookworm ship, so a plain
+# `python3 -m venv` there can install RATA without a newer interpreter.
+requires-python = ">=3.11"
+dependencies = [
+    "pyserial>=3.5,<4.0",
+    "smbus2>=0.6.1,<0.7.0",
+    "opencv-python>=4.8,<6.0",
+]
+
+# NOTE: the Raspberry-Pi device libraries are deliberately NOT locked here.
+# rpi_ws281x (NeoPixel) has no cross-platform wheel -- uv would have to build its
+# sdist just to resolve it, which only works on a Pi -- and picamera2 is best
+# taken from apt (python3-picamera2) with --system-site-packages. So `install.sh
+# --pi` installs them on the Pi itself (see that script), keeping this lockfile
+# resolvable on any machine.
+
+# Deliberately NO [project.scripts]. Console scripts are installed into whatever
+# venv the package lands in -- including a user's own project when they
+# `uv add ratapy` -- where a `rata` on PATH would shadow the system-wide one and
+# then fail, because firmware/ and install.sh are not next to the installed
+# package. install.sh writes the `rata` / `ratapyui` launchers itself, running
+# `python -m ratapy.cli` / `python -m ratapyUI` against its private venv.
+
+# Tooling; excluded by `uv sync --no-dev` (what the installer uses).
+[dependency-groups]
+dev = ["mypy>=2.2.0", "pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# The importable code lives in two top-level packages (not a src/ layout).
+[tool.hatch.build.targets.wheel]
+packages = ["ratapy", "ratapyUI"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+# Ideally this would be requires-python's floor (3.11), but numpy's bundled stubs
+# use PEP 695 `type` statements and mypy rejects those below 3.12. RATA's own code
+# is 3.11-clean -- the test-suite is run against 3.11 to prove it.
+python_version = "3.12"
+strict = true
+files = ["ratapy", "ratapyUI"]
+
+[[tool.mypy.overrides]]
+# pyserial and smbus2 ship no type stubs.
+module = ["serial.*", "smbus2.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Master-attached devices (ratapy.devices.local). opencv-python ships no stubs;
+# picamera2/rpi_ws281x/libcamera are the optional `pi` extra -- only present on a
+# real Raspberry Pi, so absent here. All treated as untyped.
+module = ["picamera2.*", "cv2.*", "rpi_ws281x.*", "libcamera.*"]
+ignore_missing_imports = true
