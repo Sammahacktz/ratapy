@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Launch the RATA control panel (TUI). Run from the repo root, or from anywhere.
+#
+#   ./ratapyui
+#
+# Prefers the uv environment (where ratapy + its deps live); falls back to plain
+# python3 if uv is not installed. (After install.sh, use the `ratapyui` command in
+# ~/.local/bin instead -- this is for running from a source checkout.)
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$HERE"
+
+if command -v uv >/dev/null 2>&1; then
+    exec uv run python -m ratapyUI "$@"
+else
+    exec python3 -m ratapyUI "$@"
+fi
