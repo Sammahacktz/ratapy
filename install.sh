@@ -255,22 +255,11 @@ EOF
 
 configure_pi() {
     step "Configuring Raspberry Pi devices (camera, NeoPixel, audio)"
-    need_sudo
-    $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-        python3-picamera2 python3-libcamera libcap-dev libportaudio2
-    cd "$RATA_HOME"
-    uv pip install rpi_ws281x          # built here; only compiles on the Pi
-    uv pip install sounddevice         # PiMicrophone / PiSpeaker (needs libportaudio2)
-    ok "picamera2 + libcamera (apt), rpi_ws281x + sounddevice (venv) installed"
-    if command -v libcamera-hello >/dev/null 2>&1 || command -v rpicam-hello >/dev/null 2>&1; then
-        ok "camera stack present -- enable it in raspi-config if not already"
-    else
-        warn "no libcamera tools found -- enable the camera in raspi-config"
-    fi
-    # I2S audio (PiMicrophone/PiSpeaker) needs a device-tree overlay in the boot
-    # config, which is board- and kernel-specific -- a wrong overlay can stop the
-    # Pi booting, so this is a documented MANUAL step, not an auto edit here.
-    info "For I2S mic/amp audio, add the right dtoverlay by hand -- see docs/INSTALL.md"
+    # One implementation, in scripts/setup-pi.sh, so `rata pi` (post-install) and
+    # `install.sh --pi` (install-time) do exactly the same thing. We are already
+    # root-capable here (need_sudo) and uv is on PATH, so the script's own sudo/uv
+    # detection is a no-op in this context.
+    RATA_HOME="$RATA_HOME" bash "$RATA_HOME/scripts/setup-pi.sh"
 }
 
 configure_usb_gadget() {

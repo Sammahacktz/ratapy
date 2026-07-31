@@ -42,7 +42,7 @@ import sys
 from collections.abc import Callable
 from importlib import metadata
 
-from ratapyUI.ops import devices, flash, i2c, runtests, storage, usbgadget
+from ratapyUI.ops import devices, flash, i2c, pidevices, runtests, storage, usbgadget
 
 # `rata <name> ...` -> that op's own main(rest). The op owns its arguments; this
 # map is only the public name for it. Imported by hand rather than looked up by
@@ -53,6 +53,7 @@ OPS: dict[str, Callable[[list[str]], int]] = {
     "storage": storage.main,
     "i2c": i2c.main,
     "usb-gadget": usbgadget.main,
+    "pi": pidevices.main,
     "test": runtests.main,
 }
 
@@ -63,6 +64,7 @@ op commands (their own flags pass straight through; add --help to any of them):
   rata storage [--live]                        firmware footprint / device slots
   rata i2c [--undo]                            enable/disable the Pi's I2C bus
   rata usb-gadget [--undo]                     enable/disable USB gadget mode
+  rata pi                                      install Pi device libs (camera/audio/LEDs)
   rata test [-v]                               run the ratapy test-suite
 """
 

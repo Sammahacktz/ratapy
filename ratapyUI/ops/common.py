@@ -31,6 +31,7 @@ SKETCH = FIRMWARE_DIR / "rata"
 INSTALL_SH = REPO_ROOT / "install.sh"
 SETUP_USB_GADGET_SH = REPO_ROOT / "scripts" / "setup-usb-gadget.sh"
 SETUP_I2C_SH = REPO_ROOT / "scripts" / "setup-i2c.sh"
+SETUP_PI_SH = REPO_ROOT / "scripts" / "setup-pi.sh"
 
 
 # --- board table (the one true copy) ----------------------------------------

@@ -38,7 +38,8 @@ echoed there (`$ ...`) and its output streams in as it happens.
 
 ### Pages
 
-- **Install RATA** — toolchain + Python deps (`--with-pi` option).
+- **Find updates** — check for a newer release and pull it (thin front over
+  `install.sh --check` / `--update`; dev/package target and stable/pre-release).
 - **List devices** — a **topology overview**: the master and each board drawn as
   boxes joined by wires (name, firmware version, device count). Enter a board to
   drill into its registered devices *and the pins they're wired to* (read live
@@ -46,6 +47,11 @@ echoed there (`$ ...`) and its output streams in as it happens.
   re-check reachability.
 - **Storage manager** — firmware footprint per board + live device slots.
 - **Flash Arduinos** — a form with a live command preview, then flash.
+- **USB gadget setup** / **I2C setup** — one-time Pi boot-config changes (run
+  `scripts/setup-*.sh` via sudo; need a reboot).
+- **Pi devices setup** — install the Pi-only device libraries (camera, NeoPixel,
+  audio) into this install; same as `rata pi` / `install.sh --pi`, on an existing
+  install. Package installs, so nothing to reboot or revert.
 - **Run tests** — runs the `ratapy` pytest suite (all, or one file; verbose
   toggle); results stream into the Log.
 

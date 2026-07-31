@@ -27,6 +27,15 @@ from .runner import CommandRunner
 # (and therefore see apt's packages) and still run RATA.
 MIN_PYTHON = (3, 11)
 
+# The Pi device libraries that are PIP-installed into the RATA venv by `rata pi`
+# (import name == pip name). picamera2/libcamera come from apt instead and a
+# --system-site-packages project venv already sees those; these two live only in
+# the RATA venv's site-packages, which a separate project venv can't reach -- so
+# a NeoPixel/audio project would hit "No module named rpi_ws281x". If the RATA
+# install has them (i.e. you ran `rata pi`), we install the same into the new
+# project venv so it works out of the box.
+PI_PIP_EXTRAS = ("rpi_ws281x", "sounddevice")
+
 STARTER = '''"""A first RATA script -- blink the LED on pin 13.
 
 Run it with:   {venv}/bin/python main.py     (or activate the venv first)
@@ -123,6 +132,36 @@ def _create_venv(runner: CommandRunner, venv: Path, prompt: str, system_site: bo
     return runner.run([base, "-m", "venv", "--prompt", prompt, *extra, str(venv)])
 
 
+def _mirror_pi_extras(runner: CommandRunner, venv: Path) -> None:
+    """Install into the project venv whichever pip-based Pi libraries the RATA
+    install has -- so a NeoPixel/audio project works without a manual step.
+
+    Only what `rata pi` actually installed is copied: we ask the RATA venv's own
+    Python whether it can import each, so on a plain dev box (nothing installed)
+    this is a no-op, and on a Pi it mirrors exactly what is there. Best-effort --
+    a failure here just leaves the manual `pip install` to the user.
+    """
+    rata_python = REPO_ROOT / ".venv" / "bin" / "python"
+    if not rata_python.exists():
+        return
+
+    def has(pkg: str) -> bool:
+        # Probe QUIETLY (subprocess, output discarded) -- a missing package is the
+        # normal case and must not spew an import traceback into the log.
+        return subprocess.run(
+            [str(rata_python), "-c", f"import {pkg}"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode == 0
+
+    present = [pkg for pkg in PI_PIP_EXTRAS if has(pkg)]
+    if not present:
+        return
+    runner.log(f"Mirroring the RATA install's Pi libraries: {', '.join(present)}")
+    if runner.run([str(venv / "bin" / "pip"), "install", "--quiet", *present]) != 0:
+        runner.log(f"  ! could not install {', '.join(present)} -- add them by hand:")
+        runner.log(f"    {venv.name}/bin/pip install {' '.join(present)}")
+
+
 def start_project(runner: CommandRunner, path: Path, system_site: bool = True) -> int:
     """Create <path> with a venv that has ratapy installed. Returns 0 on success.
 
@@ -152,6 +191,8 @@ def start_project(runner: CommandRunner, path: Path, system_site: bool = True) -
     if runner.run([str(venv / "bin" / "pip"), "install", "--quiet", "-e", str(REPO_ROOT)]) != 0:
         runner.log("  ! could not install ratapy into the project venv")
         return 1
+
+    _mirror_pi_extras(runner, venv)
 
     (target / "main.py").write_text(STARTER.format(venv=venv_name))
     (target / ".gitignore").write_text(GITIGNORE.format(venv=venv_name))

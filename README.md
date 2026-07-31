@@ -184,7 +184,17 @@ copy of the source and `rata update` reaches your project too — **updating is
 just `rata update`, with nothing to do in the project itself**. The one exception
 is an update that adds a *new dependency*: `rata update` only re-syncs RATA's own
 environment, so re-run `pip install -e ~/.local/share/rata` in your activated
-project venv if an import starts failing afterwards. The venv is built
+project venv if an import starts failing afterwards.
+
+If you already ran `rata pi`, `start-project` also **mirrors the Pi device
+libraries** (`rpi_ws281x`, `sounddevice`) into the new venv — they're pip
+installs that live in the RATA venv, not shareable through the editable link, so
+a fresh project would otherwise miss them (`No module named 'rpi_ws281x'`).
+Run `rata pi` *before* scaffolding to get them; into an existing project, add
+them with `pip install rpi_ws281x sounddevice` in its venv. (Camera works either
+way — picamera2 comes from apt and the venv sees it via `--system-site-packages`.)
+
+The venv is built
 with RATA's own interpreter, so it is new enough regardless of what `python3`
 points at, and it is named after the project — so an activated shell says
 `(myapp_venv)` rather than a `(.venv)` shared by every project you have open.
@@ -205,7 +215,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 # 4. install RATA into it (pip now works: you are inside a venv, PEP 668 no longer applies)
-pip install "ratapy @ git+https://github.com/Sammahacktz/ratapy.git@v1.0.0"
+pip install "ratapy @ git+https://github.com/Sammahacktz/ratapy.git@v1.1.0"
 
 # 5. ...and whatever else your project needs
 pip install requests
@@ -231,7 +241,7 @@ Same idea, less typing — they create and manage the venv for you:
 uv init myproject && cd myproject
 
 # either: pin a release (portable -- this pyproject.toml works on any machine)
-uv add "git+https://github.com/Sammahacktz/ratapy.git@v1.0.0"
+uv add "git+https://github.com/Sammahacktz/ratapy.git@v1.1.0"
 
 # or: follow the system install (no second copy; tracks `rata update`)
 uv add --editable ~/.local/share/rata
@@ -240,7 +250,7 @@ uv add requests                  # your own dependencies, as usual
 uv run python my_script.py       # no activate needed
 ```
 
-Poetry: `poetry add git+https://github.com/Sammahacktz/ratapy.git#v1.0.0`.
+Poetry: `poetry add git+https://github.com/Sammahacktz/ratapy.git#v1.1.0`.
 
 > **Don't install your project's packages into `~/.local/share/rata/.venv`.** That
 > environment belongs to the installer: `rata update` runs `uv sync`, which makes
@@ -905,14 +915,21 @@ see [docs/INSTALL.md](docs/INSTALL.md). A **USB** mic/speaker needs no overlay. 
 Pi has one I2S peripheral, so an I2S mic *and* an I2S amp at once need a single
 combined overlay.
 
-The camera and strip (above) run only on a Raspberry Pi and need extra
-libraries. The easy way is `bash install.sh --pi`; the manual equivalent:
+All of these run only on a Raspberry Pi and need extra libraries (picamera2,
+rpi_ws281x, sounddevice). Install them at setup with `bash install.sh --pi`, or
+add them to an existing install any time — no reinstall — with:
 
 ```bash
-sudo apt install -y python3-picamera2 python3-libcamera libcap-dev
+rata pi          # camera + NeoPixel + audio libraries (also in the TUI: "Pi devices setup")
+```
+
+The manual equivalent, if you'd rather:
+
+```bash
+sudo apt install -y python3-picamera2 python3-libcamera libcap-dev libportaudio2
 uv venv --system-site-packages        # let the venv see apt's libcamera
 uv sync --frozen
-uv pip install rpi_ws281x             # NeoPixel driver, built on the Pi
+uv pip install rpi_ws281x sounddevice # NeoPixel + audio, built/installed on the Pi
 ```
 
 The NeoPixel strip usually needs **root** (run with `sudo`). RATA loads these
@@ -1563,4 +1580,8 @@ rata update                  # update to the latest release + re-sync dependenci
 rata check --pre-release     # ... track master (bleeding edge) instead
 rata uninstall               # remove the RATA env + launchers
 rata version
+
+rata pi                      # add Pi device libs (camera/audio/LEDs) to this install
+rata i2c [--undo]            # enable/disable the Pi's I2C bus
+rata usb-gadget [--undo]     # enable/disable USB gadget mode
 ```

@@ -14,6 +14,7 @@ from .app import App, DetailPage, Page
 from .ops import devices as op_devices
 from .ops import flash as op_flash
 from .ops import i2c as op_i2c
+from .ops import pidevices as op_pidevices
 from .ops import runtests as op_tests
 from .ops import storage as op_storage
 from .ops import updates as op_updates
@@ -45,6 +46,7 @@ class HomePage(Page):
             W.MenuItem("Flash Arduinos", "flash", "compile + upload"),
             W.MenuItem("USB gadget setup", "usbgadget", "Pi HID gamepad"),
             W.MenuItem("I2C setup", "i2c", "Pi I2C bus"),
+            W.MenuItem("Pi devices setup", "pidevices", "camera · audio · LEDs"),
             W.MenuItem("Run tests", "tests", "pytest"),
             W.MenuItem("Quit", "quit", ""),
         ])
@@ -76,6 +78,7 @@ class HomePage(Page):
             "flash": FlashPage,
             "usbgadget": UsbGadgetPage,
             "i2c": I2cPage,
+            "pidevices": PiDevicesPage,
             "tests": TestsPage,
         }[str(value)]
         # show the loading overlay before we even build the page (its __init__
@@ -633,6 +636,60 @@ class I2cPage(DetailPage):
             app.run_action(item, lambda: op_i2c.undo(app.runner()))
         else:
             app.run_action(item, lambda: op_i2c.setup(app.runner()))
+
+
+class PiDevicesPage(DetailPage):
+    """Install the Pi-only device libraries (camera, NeoPixel, audio) after setup.
+
+    Runs scripts/setup-pi.sh -- the same thing `install.sh --pi` does, but on an
+    existing install and without re-running the whole installer. Unlike the I2C /
+    USB pages this is package installs, not a boot-config change, so there's
+    nothing to reboot or revert.
+    """
+
+    title = "Pi devices setup"
+    left_title = "Action"
+    right_title = "What it does"
+    hints = "↑↓ move · Enter run · Esc back · q quit"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.menu.set_items([
+            W.MenuItem("Install Pi device libraries (sudo)", "run"),
+            W.MenuItem("Back", "back"),
+        ])
+
+    def draw_detail(self, app: App, y: int, x: int, h: int, w: int) -> None:
+        lines = [
+            "Adds Raspberry-Pi-only hardware support to this",
+            "install -- run it any time after the base install:",
+            "",
+            f"  {theme.ARROW} apt:  python3-picamera2, libcamera, libcap-dev,",
+            "         libportaudio2",
+            f"  {theme.ARROW} venv: rpi_ws281x (NeoPixel), sounddevice (audio)",
+            "",
+            "Enables: PiCamera, PiNeoPixel, PiMicrophone,",
+            "PiSpeaker. Idempotent -- safe to re-run.",
+            "",
+            "Not a boot-config change: nothing to reboot or",
+            "revert. It does NOT enable the camera (raspi-config)",
+            "or write an I2S audio overlay (manual -- see the docs).",
+            "",
+            "The apt step needs root. The panel needs passwordless",
+            "sudo; otherwise run it in a terminal instead:",
+            "  rata pi",
+        ]
+        for i, ln in enumerate(lines):
+            attr = app.palette["muted"] if ln.startswith("  ") else app.palette["normal"]
+            W.addstr(app.stdscr, y + i, x, ln[:w], attr)
+
+    def on_select(self, app: App, item: W.MenuItem) -> None:
+        if item.value == "back":
+            app.go_home()
+            return
+        app.log.append("")
+        app.run_action(item, lambda: op_pidevices.setup(app.runner()))
+
 
 class TestsPage(DetailPage):
     title = "Run tests"

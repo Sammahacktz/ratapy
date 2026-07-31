@@ -45,7 +45,7 @@ ratapyUI/               terminal control panel (curses TUI) + standalone ops
   theme.py              glyphs/colours/ASCII wordmark + ANSI+text bars (no curses)
   tui/screen.py,widgets.py  reusable curses toolkit (Box/Menu/LogPane, palette, mouse)
   ops/                  the actual work, each DUAL-USE (TUI + `python -m ratapyUI.ops.<x>`)
-    runner.py common.py updates.py devices.py storage.py flash.py usbgadget.py
+    runner.py common.py updates.py devices.py storage.py flash.py usbgadget.py i2c.py pidevices.py
 ratapyui                launcher script for the TUI (repo root)
 example.py              minimal user example (kept working; it's a smoke test)
 

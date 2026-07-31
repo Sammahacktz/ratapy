@@ -2,7 +2,7 @@
 # Matches the import package and the repo. ("rata" is taken on PyPI, and the
 # mismatch made `pip install "ratapy @ git+..."` fail on the metadata name.)
 name = "ratapy"
-version = "1.0.0"
+version = "1.1.0"
 description = "Raspberry-pi Attached Things -- dynamic control of Arduinos and Pi devices from Python."
 authors = [
     {name = "Charlie-Luis Reichelt", email = "charlie-luis.reichelt@tu-dresden.de"}
