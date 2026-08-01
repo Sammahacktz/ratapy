@@ -29,6 +29,7 @@ from .base import LocalDevice
 
 if TYPE_CHECKING:
     from .adxl345 import PiADXL345
+    from .radar import PiRadar, RadarTarget
     from .audio import PiMicrophone, PiSpeaker
     from .camera import Frame, PiCam, PiCamera
     from .neopixel import Color, PiNeoPixel
@@ -36,6 +37,8 @@ if TYPE_CHECKING:
 # name -> submodule that defines it; imported on first access only.
 _LAZY: dict[str, str] = {
     "PiADXL345": "adxl345",
+    "PiRadar": "radar",
+    "RadarTarget": "radar",
     "PiMicrophone": "audio",
     "PiSpeaker": "audio",
     "PiCamera": "camera",
@@ -64,6 +67,8 @@ def __dir__() -> list[str]:
 __all__ = [
     "LocalDevice",
     "PiADXL345",
+    "PiRadar",
+    "RadarTarget",
     "PiMicrophone",
     "PiSpeaker",
     "PiCamera",

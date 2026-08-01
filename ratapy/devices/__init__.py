@@ -82,6 +82,8 @@ if TYPE_CHECKING:
     from .local import (
         LocalDevice,
         PiADXL345,
+        PiRadar,
+        RadarTarget,
         PiMicrophone,
         PiSpeaker,
         PiCamera,
@@ -92,7 +94,7 @@ if TYPE_CHECKING:
     )
 
 _LOCAL_EXPORTS = frozenset(
-    {"LocalDevice", "PiADXL345", "PiMicrophone", "PiSpeaker", "PiCamera", "PiCam", "Frame", "PiNeoPixel", "Color"}
+    {"LocalDevice", "PiADXL345", "PiRadar", "RadarTarget", "PiMicrophone", "PiSpeaker", "PiCamera", "PiCam", "Frame", "PiNeoPixel", "Color"}
 )
 
 
@@ -152,6 +154,8 @@ __all__ = [
     # master-attached devices (run on the Raspberry Pi itself; Pi* prefix)
     "LocalDevice",
     "PiADXL345",
+    "PiRadar",
+    "RadarTarget",
     "PiMicrophone",
     "PiSpeaker",
     "PiCamera",

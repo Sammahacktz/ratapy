@@ -915,6 +915,30 @@ see [docs/INSTALL.md](docs/INSTALL.md). A **USB** mic/speaker needs no overlay. 
 Pi has one I2S peripheral, so an I2S mic *and* an I2S amp at once need a single
 combined overlay.
 
+**Radar — `PiRadar`** reads a 24 GHz mmWave radar (the Ai-Thinker **RD-03D**) that
+tracks up to three moving targets and gives each one's position — real 2D
+localization, not a one-bit motion trip:
+
+```python
+from ratapy.devices import PiRadar
+
+radar = PiRadar(port="/dev/ttyAMA0", board=rp)
+for t in radar.read():               # the targets in the next frame
+    print(t.x, t.y, "mm", t.speed, "cm/s", f"{t.angle_deg:.0f}°")
+```
+
+It's a **serial** device — the radar's TX/RX go to a UART the Pi reads (the Pi's
+own GPIO UART, or a USB-serial adapter at `/dev/ttyUSB0`); DM/DP are the module's
+USB config port, not used here. Needs no `--pi` libraries (it uses `pyserial`,
+already a core dependency), just the serial port. Each target has `x`/`y` (mm,
+`x` left−/right+ of boresight), `speed` (cm/s), `distance`, plus `range_mm` and
+`angle_deg`. Up to three targets; an empty list means "frame seen, nobody there".
+
+> **Decode not yet hardware-verified.** The RD-03D frame parsing is from the
+> protocol docs — if coordinates look mirrored or wrong, capture a frame with
+> `radar.raw_frame()` and check the sign bits. Some units also ship in
+> single-target mode and need the vendor tool to enable the 3-target stream.
+
 All of these run only on a Raspberry Pi and need extra libraries (picamera2,
 rpi_ws281x, sounddevice). Install them at setup with `bash install.sh --pi`, or
 add them to an existing install any time — no reinstall — with:
@@ -1524,6 +1548,7 @@ PiCam(board=rp).snapshot("p.jpg")            # camera (Picamera2 + OpenCV)
 PiNeoPixel(count=16, board=rp)               # WS2812 strip/ring; .fill()/[i]=/.show()
 PiMicrophone(board=rp).record(seconds=3)     # -> numpy audio; .record_wav(path, s), .level()
 PiSpeaker(board=rp).play(samples_or_wav)     # also .tone(freq, s), .stop()
+PiRadar(port="/dev/ttyAMA0", board=rp).read()  # RD-03D 24GHz: up to 3 targets, x/y/speed
 RotaryEncoder(clk=2, dt=3).position          # signed count; also .detents, .reset()
 RotarySwitch(pins=[2,3,4,5]).position        # selected index or None (from components)
 
