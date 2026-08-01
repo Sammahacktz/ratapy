@@ -603,6 +603,52 @@ class Buzzer(DigitalOutput):
         return f"Buzzer(pin={self.pin})"
 
 
+class Solenoid(DigitalOutput):
+    """A solenoid / electromagnetic actuator -- an on/off pull on any digital pin.
+
+        lock = Solenoid(pin=7)
+        lock.energize()          # pull in  (coil on)
+        lock.deenergize()        # release  (coil off)
+        lock.pulse(0.2)          # fire for 0.2 s, then release -- non-blocking
+
+    Wiring: a solenoid is an INDUCTIVE, high-current load. Drive it through a
+    MOSFET / transistor or a relay -- **never straight off a pin** -- and put a
+    **flyback diode** across the coil, or the back-EMF spike when it switches off
+    will destroy the driver (and possibly the board).
+
+    Most solenoids are rated for INTERMITTENT duty: holding one energized cooks
+    the coil. Prefer `pulse()` -- the board times the pull and releases it, so
+    even if your script dies mid-pulse the coil is still let go.
+    """
+
+    def energize(self) -> None:
+        """Pull the solenoid in (coil on) and hold it. Mind the duty rating."""
+        self.on()
+
+    def deenergize(self) -> None:
+        """Release the solenoid (coil off)."""
+        self.off()
+
+    @property
+    def is_energized(self) -> bool:
+        """Whether energize()/deenergize() last left it on. (A `pulse()` is timed
+        by the board -- use `is_busy()` / `wait()` to track one of those.)"""
+        return self.is_on
+
+    def pulse(self, seconds: float = 0.1) -> None:
+        """Energize for `seconds`, then release -- non-blocking (the board times it).
+
+        The release is firmware-driven, so a crashed or blocked script can't leave
+        the coil stuck on. `wait()` blocks until the pulse finishes.
+        """
+        if seconds <= 0:
+            raise ValueError(f"pulse seconds must be positive, got {seconds}")
+        self.blink(times=1, on=seconds, off=0.0)
+
+    def __repr__(self) -> str:
+        return f"Solenoid(pin={self.pin})"
+
+
 class ContinuousServo(Servo):
     """A continuous-rotation servo, where the 'angle' controls speed/direction.
 

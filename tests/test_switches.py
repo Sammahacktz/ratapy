@@ -143,3 +143,45 @@ def test_active_high_relay_can_still_blink(board: Mega, link: MockLink) -> None:
     r = Relay(pin=7, board=board)
     r.blink(2)
     assert _last_write(link)[1] == 0x02          # the DigitalOutput blink sub-command
+
+
+# --- Solenoid -------------------------------------------------------------
+
+def test_solenoid_energize_deenergize(board: Mega, link: MockLink) -> None:
+    from ratapy.devices import Solenoid
+    sol = Solenoid(pin=7, board=board)
+    sol.energize()
+    assert link.last_write_payload() == b"\x01"      # HIGH
+    assert sol.is_energized is True
+    sol.deenergize()
+    assert link.last_write_payload() == b"\x00"
+    assert sol.is_energized is False
+
+
+def test_solenoid_pulse_is_one_firmware_timed_blink(board: Mega, link: MockLink) -> None:
+    # The safety property: the board times the release, so it's one non-blocking
+    # blink of a single cycle -- not a sleep + off in Python.
+    from ratapy.devices import Solenoid
+    sol = Solenoid(pin=7, board=board)
+    before = len(link.writes())
+    sol.pulse(0.2)
+    assert len(link.writes()) == before + 1          # one command, no Python sleep
+    payload = link.last_write_payload()              # id-stripped
+    assert payload[0] == 2                            # blink opcode
+    assert int.from_bytes(payload[1:3], "big") == 1   # exactly one cycle
+    assert int.from_bytes(payload[3:5], "big") == 200 # on = 0.2 s
+
+
+def test_solenoid_pulse_rejects_nonpositive(board: Mega) -> None:
+    from ratapy.devices import Solenoid
+    sol = Solenoid(pin=7, board=board)
+    with pytest.raises(ValueError, match="pulse seconds must be positive"):
+        sol.pulse(0)
+
+
+def test_solenoid_registers_as_a_digital_output(board: Mega, link: MockLink) -> None:
+    from ratapy.devices import Solenoid
+    Solenoid(pin=7, board=board)
+    add = [f for f in link.sent if f.cmd == p.CMD_ADD_DEVICE][-1]
+    assert add.payload[1] == p.DEV_DIGITAL_OUT       # no new firmware
+    assert add.payload[2] == 7

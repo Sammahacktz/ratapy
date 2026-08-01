@@ -665,6 +665,7 @@ something they don't cover.
 | `Mosfet(pin)` | PWM | `on/off/toggle`, `level(%)`, `fade_to(%, secs)` — a silent relay that can do partial power |
 | `Relay(pin, active_low=)` | LED | `on/off/toggle` on any digital pin (mechanical switch) |
 | `Buzzer(pin)` | LED | `beep(duration, times)` (active buzzer) |
+| `Solenoid(pin)` | DigitalOutput | `energize()`, `deenergize()`, `pulse(secs)` (board-timed release) |
 | `ContinuousServo(pin)` | Servo | `speed(-100..100)`, `stop()` (continuous-rotation servo) |
 | `Potentiometer(channel)` | AnalogInput | `percent`, `map_to(low, high)` |
 | `LightSensor(channel)` | AnalogInput | `level` (0–100), `is_dark()`, `is_bright()` |
@@ -1511,6 +1512,7 @@ led.blink(times=1, on=0.5, off=0.5)  # non-blocking (0 = forever); led.wait()
 Relay(pin=7, active_low=False)       # mechanical, any digital pin; .on()/.off()/.toggle()
 Mosfet(pin=9)                        # solid-state, PWM pin; .on()/.off()/.toggle()
 Mosfet(pin=9).level(40)              # 40 % power; also .fade_to(%, secs), .percent
+Solenoid(pin=7).pulse(0.2)           # fire 0.2s then release (board-timed); .energize()/.deenergize()
 
 # --- PWM / servo (outputs) ---
 PWM(pin=9).set(128)                  # 0..255; also .fraction(0..1), .off()
