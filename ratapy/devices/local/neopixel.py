@@ -24,11 +24,13 @@ Default data pin is GPIO18 (PWM0).
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
 from rpi_ws281x import PixelStrip
 
+from ...protocol import RataError
 from ...raspberry import Raspberry
 from .base import LocalDevice
 
@@ -78,6 +80,18 @@ class PiNeoPixel(LocalDevice):
     def _hw(self) -> Any:
         """The started PixelStrip, opened on first use."""
         if self._strip is None:
+            # rpi_ws281x maps /dev/mem (the PWM/DMA registers), which is root-only.
+            # Without root it fails inside the C library with "can't open /dev/mem"
+            # and then SEGFAULTS on its own error path -- so check here first and
+            # raise something readable instead.
+            if os.geteuid() != 0:
+                raise RataError(
+                    "PiNeoPixel needs root: rpi_ws281x drives the LEDs over the "
+                    "Pi's PWM/DMA (via /dev/mem), which only root can map. Run your "
+                    "script with sudo, e.g.\n"
+                    "    sudo <venv>/bin/python your_script.py\n"
+                    "(use the venv's python by full path -- sudo resets PATH)."
+                )
             # (num, pin, freq_hz, dma, invert, brightness, channel)
             strip = PixelStrip(self.count, self.pin, 800000, 10, False, self.brightness, 0)
             strip.begin()
