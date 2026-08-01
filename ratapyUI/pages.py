@@ -460,7 +460,9 @@ class FlashPage(DetailPage):
         self._rebuild()
 
     def _rebuild(self) -> None:
-        i2c = "off" if self.i2c is None else str(self.i2c)
+        # Show decimal + hex: the CLI/`--i2c` and `Uno(0x08)` take the number,
+        # while `i2cdetect` lists it in hex -- seeing both saves a conversion.
+        i2c = "off" if self.i2c is None else f"{self.i2c} (0x{self.i2c:02x})"
         keep = self.menu.selected
         self.menu.set_items([
             W.MenuItem(f"Board", "board", self.board, multi=True),
@@ -480,7 +482,7 @@ class FlashPage(DetailPage):
         summary = [
             ("Board", BOARDS[self.board].name),
             ("FQBN", BOARDS[self.board].fqbn),
-            ("Transport", "I2C @ %s" % self.i2c if self.i2c is not None else "serial"),
+            ("Transport", f"I2C @ {self.i2c} (0x{self.i2c:02x})" if self.i2c is not None else "serial"),
             ("Port", "-" if self.i2c is not None or self.compile_only else self.port),
             ("Upload", "no (compile only)" if self.compile_only else "yes"),
         ]
@@ -501,7 +503,10 @@ class FlashPage(DetailPage):
             if self.ports:
                 self.port = self.ports[(self.ports.index(self.port) + delta) % len(self.ports)]
         elif item.value == "i2c":
-            choices: list[int | None] = [None, 8, 9, 10, 16]
+            # None = serial, then every valid 7-bit I2C address: 0x08..0x77 (8..119).
+            # 0x00-0x07 and 0x78-0x7F are reserved, so they are left out. Cycles with
+            # left/right -- go left from "off" to jump straight to the top (0x77).
+            choices: list[int | None] = [None, *range(0x08, 0x78)]
             cur = choices.index(self.i2c) if self.i2c in choices else 0
             self.i2c = choices[(cur + delta) % len(choices)]
         elif item.value == "compile":
