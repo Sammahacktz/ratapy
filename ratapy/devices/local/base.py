@@ -20,6 +20,8 @@ lifecycle: the Raspberry tracks it and closes it in `Raspberry.close()`.
 
 from __future__ import annotations
 
+import math
+import time
 from abc import ABC
 
 from ...protocol import RataError
@@ -49,12 +51,54 @@ class LocalDevice(ABC):
             )
         self._board: Raspberry = resolved
         self._closed: bool = False
+        # Monotonic instant a running background action is due to finish (0.0 =
+        # idle). Drives is_busy()/wait() -- see _mark_busy(). Effectful devices
+        # (a PiServo mid-sweep, a PiLED mid-blink) set this; readers never do.
+        self._busy_until: float = 0.0
         self._board._register_local(self)
 
     @property
     def board(self) -> Raspberry:
         """The master this device is attached to."""
         return self._board
+
+    # --- lifecycle, mirroring ratapy.devices.Device -----------------------
+    # So a Pi device drives exactly like an Arduino one -- same is_busy()/wait(),
+    # so the same `dev.move(...); dev.wait()` shape works, including inside a
+    # `with BackgroundTasks():` block. The background work itself is run by
+    # gpiozero (the Pi's equivalent of the Arduino's firmware), not by RATA
+    # threads; here we only track WHEN it finishes.
+
+    def is_busy(self) -> bool:
+        """True while a background action (blink / fade / sweep / pulse) is running.
+
+        Instant devices never set a deadline, so they are never busy -- the same
+        default as an Arduino `Device`. Effectful devices report their progress by
+        setting a completion time when they start one.
+        """
+        return time.monotonic() < self._busy_until
+
+    def wait(self, timeout: float | None = None, poll: float = 0.02) -> None:
+        """Block until this device's current action finishes.
+
+        Every device has this, so the same loop shape works for all of them (and
+        for the Arduino versions): ``dev.blink(3); dev.wait()``. Instant commands
+        return at once; a background action polls :meth:`is_busy` until done, or
+        raises on ``timeout`` (seconds; ``None`` waits forever).
+        """
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while self.is_busy():
+            if deadline is not None and time.monotonic() > deadline:
+                raise RataError(f"{self!r} still busy after {timeout}s")
+            time.sleep(poll)
+
+    def _mark_busy(self, duration: float | None) -> None:
+        """Mark a background action running for ``duration`` s (None = until stopped)."""
+        self._busy_until = math.inf if duration is None else time.monotonic() + duration
+
+    def _clear_busy(self) -> None:
+        """Mark idle now (a fresh instant command cancels any running action)."""
+        self._busy_until = 0.0
 
     def close(self) -> None:
         """Release any hardware this device holds.

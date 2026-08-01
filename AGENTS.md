@@ -25,10 +25,11 @@ ratapy/                 Python master library (strict-typed, mypy-clean)
   raspberry.py          Raspberry -- registry, active board, default link; routes per board
   boards.py             Arduino base + Uno/Nano/Mega models; holds its own link + address
   devices/              subpackage; import all devices from `ratapy.devices`
-    __init__.py         re-exports all three groups (the single import surface)
+    __init__.py         re-exports all groups (the single import surface)
+    abstract_devices.py PURE abstract contracts (no logic): AbstractLED/Servo/Button/... Each Arduino device AND its Pi twin inherit the matching one, so the two are GUARANTEED the same methods. Abstract base goes LAST in the bases tuple (so a concrete/inherited impl wins over the abstractmethod in the MRO -> __abstractmethods__ resolves empty). Exported from `ratapy.devices`; type against them for transport-agnostic code. NO abstract for the analog family (no Pi ADC) or not-yet-ported devices.
     complex_devices.py  devices needing FIRMWARE support (a matching Device subclass in the sketch): DigitalOutput, PWM, Servo, DigitalInput, AnalogInput, StepperWithDriver, Ultrasonic, DHT, DS18B20 (+DS18S20/DS1822 aliases), RotaryEncoder, ADXL345 (I2C accelerometer, serial boards only)
     simple_devices.py   "simple" devices: pure-Python conveniences (inherit/compose the complex ones, NO new firmware): LED/Relay/Buzzer/Solenoid (DigitalOutput), DimmableLED/DCMotor/Mosfet (PWM, via the shared _PercentPWM base), ContinuousServo (Servo), Potentiometer/LightSensor/TMP36/SoilMoisture (AnalogInput), MQ2 (AnalogInput+DigitalInput gas/smoke composite), Button/MotionSensor (DigitalInput), RGBLED/Joystick/RotarySwitch (composites)
-    local/              MASTER-attached devices: wired to the Raspberry Pi itself (too heavy for an Arduino), driven in Python. base.py = LocalDevice; camera.py = PiCamera/PiCam (Picamera2 + OpenCV); neopixel.py = PiNeoPixel (rpi_ws281x); adxl345.py = PiADXL345 (smbus2, Pi's own I2C bus -- local twin of the Arduino ADXL345, shares AccelReadout); radar.py = PiRadar (RD-03D 24GHz mmWave over UART/pyserial -> up to 3 targets x/y/speed; frame decode UNVERIFIED on hw); audio.py = PiMicrophone/PiSpeaker (sounddevice/PortAudio over I2S or USB; I2S overlay is a documented MANUAL boot-config step, NOT auto-edited). ALL master-attached devices carry a `Pi` prefix so they never clash with an Arduino device of the same name (PiADXL345 vs ADXL345); all are top-level exported from `ratapy.devices`. board= is the Raspberry, NOT an Arduino. No firmware/Link/protocol. Backing libs imported at MODULE TOP; devices/__init__ loads local/ lazily (__getattr__) so RATA still imports off-Pi (picamera2/rpi_ws281x = optional `pi` group)
+    local/              MASTER-attached devices: driven in Python on the Raspberry Pi itself. base.py = LocalDevice (now also has is_busy()/wait()/_mark_busy so Pi devices drive like an Arduino Device, incl. inside BackgroundTasks). Two sorts: (a) HEAVY devices that can't sit on an Arduino -- camera.py PiCamera/PiCam (Picamera2+OpenCV), neopixel.py PiNeoPixel (rpi_ws281x), adxl345.py PiADXL345 (smbus2; shares AccelReadout w/ Arduino ADXL345), radar.py PiRadar (RD-03D UART; decode UNVERIFIED), audio.py PiMicrophone/PiSpeaker (sounddevice); (b) GPIO TWINS of the Arduino devices, gpiozero-backed -- outputs.py (PiLED/PiRelay/PiBuzzer/PiSolenoid/PiDigitalOutput + PiPWM/PiDimmableLED/PiDCMotor/PiMosfet/PiRGBLED), inputs.py (PiDigitalInput/PiButton/PiLimitSwitch/PiMotionSensor/PiUltrasonic/PiRotaryEncoder), servos.py (PiServo/PiContinuousServo). GPIO twins inherit the same Abstract* as their Arduino counterpart -- SEPARATE code, shared contract only. Pins are BCM GPIO numbers; pins.py = PiPin (IntEnum GPIO2..GPIO27, value IS the BCM number so it drops in wherever an int pin is expected -- disambiguates BCM vs physical-header numbering; pure enum, exported eagerly from ratapy.devices, no gpiozero). Effects (blink/fade/pulse/move) run on GPIOZERO's own background threads (its blink/pulse + `source` for fades) -- RATA spawns NO threads for these (gpiozero is the Pi's "firmware"); is_busy()/wait() work off a computed completion time (_busy_until), no thread introspection. ALL master-attached devices carry a `Pi` prefix (PiADXL345 vs ADXL345); all top-level exported from `ratapy.devices`. board= is the Raspberry, NOT an Arduino. No firmware/Link/protocol. Backing libs imported at MODULE TOP; devices/__init__ loads local/ lazily (__getattr__) so RATA still imports off-Pi. gpiozero IS a base dep (pure-Python, imports anywhere); its pin backend lgpio is Pi-only (`rata pi`). picamera2/rpi_ws281x/sounddevice = optional `pi` group
   __init__.py           slim: exposes only Raspberry + RataError; everything else via submodules
   executor.py           ParallelExecutor (staged/batched writes; ContextVar-based)
 firmware/rata/
@@ -179,10 +180,21 @@ compile flag. Keep it in sync with the Python address (`Uno(N, link=...)`).
   Raspberry`, drive the hardware with a Python library imported at MODULE TOP
   (no try/except), open the hardware lazily (first use, not `__init__`), override
   `_release()` for teardown. Add the name to `_LOCAL_EXPORTS` + `__all__` in
-  `devices/__init__.py` (they are resolved via `__getattr__` so the package still
-  imports off-Pi). Put a pip-installable Pi lib in the optional `pi` Poetry group,
-  and add any un-stubbed/absent lib to the `ignore_missing_imports` mypy override
-  in `pyproject.toml`. No firmware, `DEV_*`, `Link` or protocol frame.
+  `devices/__init__.py` AND to `_LAZY`/`__all__` in `devices/local/__init__.py`
+  (resolved via `__getattr__` so the package still imports off-Pi). Put a
+  pip-installable Pi lib in the optional `pi` group, and add any un-stubbed/absent
+  lib to the `ignore_missing_imports` mypy override in `pyproject.toml`. No
+  firmware, `DEV_*`, `Link` or protocol frame.
+- **Backporting an Arduino device to the Pi's GPIO** (the `Pi*` twins in
+  `local/outputs.py`|`inputs.py`|`servos.py`): (1) add/keep an `Abstract*` contract
+  in `abstract_devices.py` and make BOTH the Arduino class and the `Pi*` class
+  inherit it (abstract base LAST); (2) implement the `Pi*` as a `LocalDevice` over
+  gpiozero -- SEPARATE code, no logic shared with the Arduino side (that's the
+  point of the contract). Let gpiozero own any background work (blink/pulse/`source`)
+  and track completion via `_mark_busy()` for is_busy()/wait(); don't hand-roll
+  threads (and BackgroundTasks is the USER's tool, never a device's internal). A
+  parity test in `tests/test_abstract_parity.py` enforces both sides match --
+  extend the `PAIRS` list. Analog devices have NO Pi twin (no ADC on the Pi).
 - **Per-board limits** live in `BoardConfig.h`, selected by MCU macro at compile
   time (`__AVR_ATmega2560__` vs `__AVR_ATmega328P__`). Pin counts come from the
   core's `NUM_DIGITAL_PINS`. No runtime board detection.

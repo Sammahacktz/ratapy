@@ -29,12 +29,14 @@ MIN_PYTHON = (3, 11)
 
 # The Pi device libraries that are PIP-installed into the RATA venv by `rata pi`
 # (import name == pip name). picamera2/libcamera come from apt instead and a
-# --system-site-packages project venv already sees those; these two live only in
+# --system-site-packages project venv already sees those; these live only in
 # the RATA venv's site-packages, which a separate project venv can't reach -- so
 # a NeoPixel/audio project would hit "No module named rpi_ws281x". If the RATA
 # install has them (i.e. you ran `rata pi`), we install the same into the new
-# project venv so it works out of the box.
-PI_PIP_EXTRAS = ("rpi_ws281x", "sounddevice")
+# project venv so it works out of the box. (gpiozero is a base RATA dependency, so
+# it is already in the project venv via ratapy; only its lgpio pin backend, which
+# `rata pi` adds, needs mirroring for the Pi GPIO devices to drive real pins.)
+PI_PIP_EXTRAS = ("rpi_ws281x", "sounddevice", "lgpio")
 
 STARTER = '''"""A first RATA script -- blink the LED on pin 13.
 

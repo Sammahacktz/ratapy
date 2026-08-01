@@ -26,6 +26,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .base import LocalDevice
+from .pins import GPIOLike, PiPin        # pure enum, no Pi-only libs -- eager import
 
 if TYPE_CHECKING:
     from .adxl345 import PiADXL345
@@ -33,6 +34,27 @@ if TYPE_CHECKING:
     from .audio import PiMicrophone, PiSpeaker
     from .camera import Frame, PiCam, PiCamera
     from .neopixel import Color, PiNeoPixel
+    from .outputs import (
+        PiBuzzer,
+        PiDCMotor,
+        PiDigitalOutput,
+        PiDimmableLED,
+        PiLED,
+        PiMosfet,
+        PiPWM,
+        PiRelay,
+        PiRGBLED,
+        PiSolenoid,
+    )
+    from .inputs import (
+        PiButton,
+        PiDigitalInput,
+        PiLimitSwitch,
+        PiMotionSensor,
+        PiRotaryEncoder,
+        PiUltrasonic,
+    )
+    from .servos import PiContinuousServo, PiServo
 
 # name -> submodule that defines it; imported on first access only.
 _LAZY: dict[str, str] = {
@@ -46,6 +68,25 @@ _LAZY: dict[str, str] = {
     "Frame": "camera",
     "PiNeoPixel": "neopixel",
     "Color": "neopixel",
+    # GPIO devices (gpiozero-backed) -- the Pi twins of the Arduino devices.
+    "PiDigitalOutput": "outputs",
+    "PiLED": "outputs",
+    "PiRelay": "outputs",
+    "PiBuzzer": "outputs",
+    "PiSolenoid": "outputs",
+    "PiPWM": "outputs",
+    "PiDimmableLED": "outputs",
+    "PiDCMotor": "outputs",
+    "PiMosfet": "outputs",
+    "PiRGBLED": "outputs",
+    "PiDigitalInput": "inputs",
+    "PiButton": "inputs",
+    "PiLimitSwitch": "inputs",
+    "PiMotionSensor": "inputs",
+    "PiUltrasonic": "inputs",
+    "PiRotaryEncoder": "inputs",
+    "PiServo": "servos",
+    "PiContinuousServo": "servos",
 }
 
 
@@ -66,6 +107,8 @@ def __dir__() -> list[str]:
 
 __all__ = [
     "LocalDevice",
+    "PiPin",
+    "GPIOLike",
     "PiADXL345",
     "PiRadar",
     "RadarTarget",
@@ -76,4 +119,23 @@ __all__ = [
     "Frame",
     "PiNeoPixel",
     "Color",
+    # GPIO devices (gpiozero-backed)
+    "PiDigitalOutput",
+    "PiLED",
+    "PiRelay",
+    "PiBuzzer",
+    "PiSolenoid",
+    "PiPWM",
+    "PiDimmableLED",
+    "PiDCMotor",
+    "PiMosfet",
+    "PiRGBLED",
+    "PiDigitalInput",
+    "PiButton",
+    "PiLimitSwitch",
+    "PiMotionSensor",
+    "PiUltrasonic",
+    "PiRotaryEncoder",
+    "PiServo",
+    "PiContinuousServo",
 ]

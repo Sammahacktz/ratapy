@@ -1,6 +1,11 @@
 """Devices -- everything you attach to a board.
 
-Three kinds, split across the files but imported from here as one surface:
+Several kinds, split across the files but imported from here as one surface:
+
+- abstract_devices.py -- pure abstract contracts (`AbstractServo`, `AbstractLED`,
+  ...). Each names the methods a device must have; both the Arduino version and
+  the Pi version inherit the matching one, so the two are guaranteed to match. No
+  logic lives here. Type against these for code that takes either transport.
 
 - complex_devices.py -- devices that need custom firmware support (a matching
   Device subclass in the Arduino firmware): DigitalOutput, PWM, Servo,
@@ -10,9 +15,11 @@ Three kinds, split across the files but imported from here as one surface:
   complex ones by inheritance or composition, with no new firmware. LED, Relay,
   Buzzer, DimmableLED, Button, RGBLED, Joystick, ...
 
-- local/ -- master-attached devices: hardware wired straight to the Raspberry Pi
-  (too heavy for an Arduino) and driven in Python there. PiCamera (Picamera2 +
-  OpenCV), PiNeoPixel. You pass the Raspberry itself as the board.
+- local/ -- master-attached devices, driven in Python on the Raspberry Pi itself
+  (you pass the Raspberry as the board). Two sorts: the heavy ones that can't sit
+  on an Arduino (PiCamera, PiNeoPixel, PiRadar, ...), and the **GPIO twins** of the
+  Arduino devices (`PiLED`, `PiButton`, `PiServo`, ... -- gpiozero-backed), so the
+  same device can run behind an Arduino or on the Pi's own pins.
 
 - hid/ -- the Pi presented to a host PC as a USB gamepad (`Gamepad`) + drive
   (`Storage`), fed from RATA input devices. Needs a Raspberry with usb_device=True.
@@ -22,7 +29,9 @@ detail.
 
     from ratapy.devices import DigitalOutput, RotaryEncoder   # firmware-backed
     from ratapy.devices import LED, Button, RGBLED            # conveniences
-    from ratapy.devices import PiCamera, PiNeoPixel           # on the Pi itself
+    from ratapy.devices import PiLED, PiButton, PiServo       # on the Pi's own GPIO
+    from ratapy.devices import PiCamera, PiNeoPixel           # heavy Pi devices
+    from ratapy.devices import AbstractServo                  # the shared contract
 
 The master-attached devices in `local/` pull in Pi-only libraries (picamera2,
 rpi_ws281x -- the optional `pi` Poetry group). They are imported *lazily*: this
@@ -73,6 +82,31 @@ from .simple_devices import (
     Joystick,
     RotarySwitch,
 )
+# The Pi GPIO pin labels (PiPin.GPIO17). Pure enum, no Pi-only libs, so it imports
+# eagerly and off-Pi -- unlike the Pi devices themselves (resolved lazily below).
+from .local.pins import GPIOLike, PiPin
+# The abstract contracts every device implements on BOTH transports. Type against
+# these to write code that takes either an Arduino device or its Pi twin.
+from .abstract_devices import (
+    AbstractDigitalOutput,
+    AbstractLED,
+    AbstractRelay,
+    AbstractBuzzer,
+    AbstractSolenoid,
+    AbstractPWM,
+    AbstractDimmableLED,
+    AbstractDCMotor,
+    AbstractMosfet,
+    AbstractRGBLED,
+    AbstractServo,
+    AbstractContinuousServo,
+    AbstractDigitalInput,
+    AbstractButton,
+    AbstractLimitSwitch,
+    AbstractMotionSensor,
+    AbstractUltrasonic,
+    AbstractRotaryEncoder,
+)
 # USB-HID gadget devices (the Pi itself as a gamepad + drive). Pure filesystem
 # I/O, no Pi-only libraries, so these import on any machine.
 from .hid import Gamepad, Identity, Storage, Identity
@@ -92,11 +126,35 @@ if TYPE_CHECKING:
         Frame,
         PiNeoPixel,
         Color,
+        PiDigitalOutput,
+        PiLED,
+        PiRelay,
+        PiBuzzer,
+        PiSolenoid,
+        PiPWM,
+        PiDimmableLED,
+        PiDCMotor,
+        PiMosfet,
+        PiRGBLED,
+        PiDigitalInput,
+        PiButton,
+        PiLimitSwitch,
+        PiMotionSensor,
+        PiUltrasonic,
+        PiRotaryEncoder,
+        PiServo,
+        PiContinuousServo,
     )
 
-_LOCAL_EXPORTS = frozenset(
-    {"LocalDevice", "PiADXL345", "PiRadar", "RadarTarget", "PiMicrophone", "PiSpeaker", "PiCamera", "PiCam", "Frame", "PiNeoPixel", "Color"}
-)
+_LOCAL_EXPORTS = frozenset({
+    "LocalDevice", "PiADXL345", "PiRadar", "RadarTarget", "PiMicrophone",
+    "PiSpeaker", "PiCamera", "PiCam", "Frame", "PiNeoPixel", "Color",
+    # GPIO devices (gpiozero-backed) -- the Pi twins of the Arduino devices
+    "PiDigitalOutput", "PiLED", "PiRelay", "PiBuzzer", "PiSolenoid", "PiPWM",
+    "PiDimmableLED", "PiDCMotor", "PiMosfet", "PiRGBLED", "PiDigitalInput",
+    "PiButton", "PiLimitSwitch", "PiMotionSensor", "PiUltrasonic",
+    "PiRotaryEncoder", "PiServo", "PiContinuousServo",
+})
 
 
 def __getattr__(name: str) -> Any:
@@ -153,6 +211,25 @@ __all__ = [
     "Storage",
     "Identity",
     "Identity",
+    # abstract contracts (shared by each Arduino device and its Pi twin)
+    "AbstractDigitalOutput",
+    "AbstractLED",
+    "AbstractRelay",
+    "AbstractBuzzer",
+    "AbstractSolenoid",
+    "AbstractPWM",
+    "AbstractDimmableLED",
+    "AbstractDCMotor",
+    "AbstractMosfet",
+    "AbstractRGBLED",
+    "AbstractServo",
+    "AbstractContinuousServo",
+    "AbstractDigitalInput",
+    "AbstractButton",
+    "AbstractLimitSwitch",
+    "AbstractMotionSensor",
+    "AbstractUltrasonic",
+    "AbstractRotaryEncoder",
     # master-attached devices (run on the Raspberry Pi itself; Pi* prefix)
     "LocalDevice",
     "PiADXL345",
@@ -165,4 +242,26 @@ __all__ = [
     "Frame",
     "PiNeoPixel",
     "Color",
+    # GPIO devices on the Pi itself (gpiozero-backed twins of the Arduino devices)
+    "PiDigitalOutput",
+    "PiLED",
+    "PiRelay",
+    "PiBuzzer",
+    "PiSolenoid",
+    "PiPWM",
+    "PiDimmableLED",
+    "PiDCMotor",
+    "PiMosfet",
+    "PiRGBLED",
+    "PiDigitalInput",
+    "PiButton",
+    "PiLimitSwitch",
+    "PiMotionSensor",
+    "PiUltrasonic",
+    "PiRotaryEncoder",
+    "PiServo",
+    "PiContinuousServo",
+    # Pi GPIO pin labels
+    "PiPin",
+    "GPIOLike",
 ]

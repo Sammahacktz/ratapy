@@ -15,6 +15,7 @@ dependencies = [
     "pyserial>=3.5,<4.0",
     "smbus2>=0.6.1,<0.7.0",
     "opencv-python>=4.8,<6.0",
+    "gpiozero>=2.0,<3.0",
 ]
 
 # NOTE: the Raspberry-Pi device libraries are deliberately NOT locked here.
@@ -63,6 +64,7 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Master-attached devices (ratapy.devices.local). opencv-python ships no stubs;
 # picamera2/rpi_ws281x/libcamera are the optional `pi` extra -- only present on a
-# real Raspberry Pi, so absent here. All treated as untyped.
-module = ["picamera2.*", "cv2.*", "rpi_ws281x.*", "libcamera.*", "sounddevice.*"]
+# real Raspberry Pi, so absent here. gpiozero (the Pi GPIO devices' backend) ships
+# no stubs. All treated as untyped.
+module = ["picamera2.*", "cv2.*", "rpi_ws281x.*", "libcamera.*", "sounddevice.*", "gpiozero.*"]
 ignore_missing_imports = true

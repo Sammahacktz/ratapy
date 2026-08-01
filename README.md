@@ -679,6 +679,10 @@ something they don't cover.
 | `RGBLED(red, green, blue)` | 3× PWM | `color(r, g, b)`, `off()` (composite) |
 | `Joystick(x_channel, y_channel, button_pin=)` | 2× pot + button | `x`, `y` (−1..1), `is_pressed` (composite) |
 
+> Most of these also run on the **Pi's own GPIO** — the `Pi`-prefixed twins
+> (`PiLED`, `PiButton`, `PiServo`, …), same methods, no Arduino. See
+> [The same devices, on the Pi's own GPIO](#the-same-devices-on-the-pis-own-gpio).
+
 ```python
 from ratapy.devices import DimmableLED, Potentiometer, Button
 
@@ -962,6 +966,92 @@ devices lazily, so importing `ratapy` on a plain laptop still works — you only
 hit the missing libraries if you actually create a `PiCamera`/`PiNeoPixel` there. Full
 details in [docs/INSTALL.md](docs/INSTALL.md); runnable demo in
 [example_local.py](example_local.py).
+
+### The same devices, on the Pi's own GPIO
+
+The everyday devices — LED, button, servo, relay, PWM, … — also run **directly on
+the Raspberry Pi's own header pins**, no Arduino involved. Each has a `Pi`-prefixed
+twin (`PiLED`, `PiButton`, `PiServo`, …) with the **same methods** as the Arduino
+version; the only differences are the constructor (you pass the Raspberry, and pins
+are the Pi's) and what's underneath (these are driven by
+[gpiozero](https://gpiozero.readthedocs.io), the Pi's own GPIO library):
+
+```python
+from ratapy import Raspberry
+from ratapy.devices import PiLED, PiButton, PiServo, PiPin
+
+rp = Raspberry()                       # no Arduino needed
+
+led    = PiLED(PiPin.GPIO17)           # spell out the pin: BCM GPIO17 (header pin 11)
+button = PiButton(4)                   # ...or a plain BCM number
+arm    = PiServo(PiPin.GPIO18)
+
+button.wait_for_press()
+led.on()
+arm.move(180, duration=1.0)            # non-blocking sweep...
+arm.wait()                             # ...exactly like the Arduino Servo
+led.blink(3)
+
+rp.close()
+```
+
+Because both sides implement the **same abstract contract**
+(`ratapy.devices.AbstractServo`, `AbstractLED`, …), you can write code that takes
+either one and pass whichever you have:
+
+```python
+from ratapy.devices import AbstractServo, Servo, PiServo
+
+def wave(s: AbstractServo) -> None:    # accepts a Servo OR a PiServo
+    s.move(0, 1); s.wait()
+    s.move(180, 1); s.wait()
+
+wave(Servo(pin=9, board=arduino))      # behind an Arduino
+wave(PiServo(18, board=rp))            # or on the Pi's own pins
+```
+
+They also drive **exactly like Arduino devices inside `BackgroundTasks`** — same
+`move(); wait()` shape on a background thread (see
+[Whole sequences in the background](#whole-sequences-in-the-background-backgroundtasks)).
+
+The twins, and the Arduino device each mirrors:
+
+| On the Pi | Arduino twin | | On the Pi | Arduino twin |
+|-----------|--------------|-|-----------|--------------|
+| `PiLED` | LED | | `PiServo` | Servo |
+| `PiDimmableLED` | DimmableLED | | `PiContinuousServo` | ContinuousServo |
+| `PiDCMotor` | DCMotor | | `PiDigitalInput` | DigitalInput |
+| `PiMosfet` | Mosfet | | `PiButton` | Button |
+| `PiRelay` | Relay | | `PiLimitSwitch` | LimitSwitch |
+| `PiBuzzer` | Buzzer | | `PiMotionSensor` | MotionSensor |
+| `PiSolenoid` | Solenoid | | `PiUltrasonic` | Ultrasonic |
+| `PiPWM` | PWM | | `PiRotaryEncoder` | RotaryEncoder |
+| `PiRGBLED` | RGBLED | | `PiDigitalOutput` | DigitalOutput |
+
+A few honest differences from the Arduino versions — all because the hardware is
+different, not the API:
+
+- **Pins are BCM GPIO numbers**, not Arduino board pins. `PiLED(17)` is GPIO17.
+  To make that unmistakable, pass a **`PiPin`** label instead of a bare number —
+  `PiLED(PiPin.GPIO17)` — so "pin 17" can't be misread as physical header pin 17
+  (which is a 3.3 V power pin). A plain int still works and is read as BCM.
+- **PWM is software PWM** (`PiPWM`, `PiDimmableLED`, `PiServo`, …), which jitters
+  under CPU load. For a steady servo hold or a clean fade, use a hardware-PWM pin
+  (GPIO12/13/18/19) and install `pigpio`.
+- **`PiSolenoid.pulse()` is not crash-safe.** The Arduino times the release in
+  firmware, so a dead script still releases the coil; on the Pi a background thread
+  times it, so a killed process leaves the coil energized.
+- **`PiRelay` *can* `blink()` even active-low** (gpiozero runs the blink in Python
+  and honours the inversion) — the one place the Pi does *more* than the Arduino,
+  which refuses it.
+- **No analog, for now.** The Pi has no ADC, so `Potentiometer`, `LightSensor`,
+  `TMP36`, … stay Arduino-only. `Stepper`, `DHT` and `DS18B20` aren't ported yet.
+
+These need gpiozero's pin backend, `lgpio`, on the Pi — `rata pi` installs it
+(alongside the camera/NeoPixel/audio libraries). gpiozero itself is a base
+dependency, so importing `PiLED` on a laptop works; it only needs `lgpio` to drive
+real pins. Some setups need **root** for GPIO — run with `sudo` if you hit a
+permissions error.
 
 ### The Pi as a USB gamepad (Gamepad, Storage)
 
@@ -1551,6 +1641,9 @@ PiNeoPixel(count=16, board=rp)               # WS2812 strip/ring; .fill()/[i]=/.
 PiMicrophone(board=rp).record(seconds=3)     # -> numpy audio; .record_wav(path, s), .level()
 PiSpeaker(board=rp).play(samples_or_wav)     # also .tone(freq, s), .stop()
 PiRadar(port="/dev/ttyAMA0", board=rp).read()  # RD-03D 24GHz: up to 3 targets, x/y/speed
+PiLED(17, board=rp).blink(3)                 # the Arduino devices, on the Pi's OWN GPIO:
+PiButton(4, board=rp).was_pressed            #   Pi<Name> twins (BCM pins, gpiozero) --
+PiServo(18, board=rp).move(90, duration=1)   #   PiLED/PiButton/PiServo/PiRelay/PiPWM/...
 RotaryEncoder(clk=2, dt=3).position          # signed count; also .detents, .reset()
 RotarySwitch(pins=[2,3,4,5]).position        # selected index or None (from components)
 

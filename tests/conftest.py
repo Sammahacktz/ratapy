@@ -69,3 +69,25 @@ def board(link: MockLink) -> Mega:
     b = Mega("A", link=link)
     rp.register_arduino(b, verify=False)
     return b
+
+
+@pytest.fixture
+def mock_gpio() -> object:
+    """Point gpiozero at its in-memory mock pins, so the Pi GPIO devices run with
+    no hardware. Returns the factory; ``factory.pin(n)`` is the mock BCM pin n.
+
+    The pin class is the PWM-capable mock, so PWM/servo devices work too. Reset
+    afterwards so pins/state don't leak between tests.
+    """
+    from gpiozero import Device
+    from gpiozero.pins.mock import MockFactory, MockPWMPin
+
+    previous = Device.pin_factory
+    factory = MockFactory()
+    factory.pin_class = MockPWMPin
+    Device.pin_factory = factory
+    try:
+        yield factory
+    finally:
+        factory.reset()
+        Device.pin_factory = previous

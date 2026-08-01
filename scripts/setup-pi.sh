@@ -9,7 +9,12 @@
 #
 # What it installs:
 #   apt  : python3-picamera2 python3-libcamera libcap-dev libportaudio2
-#   venv : rpi_ws281x  sounddevice   (into RATA's own .venv, via uv pip)
+#   venv : rpi_ws281x  sounddevice  lgpio   (into RATA's own .venv, via uv pip)
+#
+# lgpio is gpiozero's pin backend on Pi OS Bookworm -- gpiozero itself is a base
+# RATA dependency (so the Pi GPIO devices import anywhere), but it needs a backend
+# to actually drive real pins. Without lgpio the Pi GPIO devices raise
+# gpiozero's BadPinFactory only when you construct one.
 #
 # apt needs root, so this uses sudo for that part; the venv installs run as you.
 # Everything is idempotent -- re-running is safe. It does NOT enable the camera
@@ -56,12 +61,12 @@ echo ">> apt: picamera2, libcamera, libcap-dev, libportaudio2 (needs root)"
 $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
   python3-picamera2 python3-libcamera libcap-dev libportaudio2
 
-echo ">> venv: rpi_ws281x (NeoPixel), sounddevice (audio)"
+echo ">> venv: rpi_ws281x (NeoPixel), sounddevice (audio), lgpio (GPIO backend)"
 cd "$RATA_HOME"
-"$UV" pip install rpi_ws281x sounddevice
+"$UV" pip install rpi_ws281x sounddevice lgpio
 
 echo
-echo ">> done. Added camera / NeoPixel / audio support."
+echo ">> done. Added camera / NeoPixel / audio / GPIO (gpiozero) support."
 if command -v libcamera-hello >/dev/null 2>&1 || command -v rpicam-hello >/dev/null 2>&1; then
   echo "   camera stack present (enable it in raspi-config if a camera doesn't work)"
 else

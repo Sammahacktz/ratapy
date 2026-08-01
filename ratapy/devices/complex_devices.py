@@ -31,6 +31,14 @@ from ..boards import Arduino, PinLike
 from ..executor import ParallelExecutor, active_executor
 from ..raspberry import Raspberry
 from ..scheduler import Scheduler
+from .abstract_devices import (
+    AbstractDigitalInput,
+    AbstractDigitalOutput,
+    AbstractPWM,
+    AbstractRotaryEncoder,
+    AbstractServo,
+    AbstractUltrasonic,
+)
 
 
 class Device(ABC):
@@ -175,7 +183,7 @@ class Device(ABC):
             time.sleep(poll)
 
 
-class DigitalOutput(Device):
+class DigitalOutput(Device, AbstractDigitalOutput):
     """A simple on/off digital output on any digital pin.
 
         out = DigitalOutput(pin=2)
@@ -318,7 +326,7 @@ class StepperWithDriver(Device):
         return f"StepperWithDriver(pins={list(self.pins)})"
 
 
-class PWM(Device):
+class PWM(Device, AbstractPWM):
     """A PWM output -- LED brightness, DC-motor speed, buzzer volume.
 
         led = PWM(pin=9)
@@ -407,7 +415,7 @@ class PWM(Device):
                    + on_ms.to_bytes(2, "big") + off_ms.to_bytes(2, "big"))
 
 
-class Servo(Device):
+class Servo(Device, AbstractServo):
     """A hobby servo motor.
 
         servo = Servo(pin=9)
@@ -459,7 +467,7 @@ class Servo(Device):
         return self._recv() != 0
 
 
-class DigitalInput(Device):
+class DigitalInput(Device, AbstractDigitalInput):
     """A digital input -- button, switch, PIR motion, limit switch.
 
         button = DigitalInput(pin=4, pull_up=True)
@@ -556,7 +564,7 @@ class AnalogInput(Device):
         return self._recv() / 1023 * vref
 
 
-class RotaryEncoder(Device):
+class RotaryEncoder(Device, AbstractRotaryEncoder):
     """An incremental rotary encoder (quadrature, e.g. a KY-040).
 
         knob = RotaryEncoder(clk=2, dt=3)
@@ -601,7 +609,7 @@ class RotaryEncoder(Device):
         self._send(b"\x00")
 
 
-class Ultrasonic(Device):
+class Ultrasonic(Device, AbstractUltrasonic):
     """An HC-SR04 ultrasonic distance sensor.
 
         sonar = Ultrasonic(trigger=7, echo=8)

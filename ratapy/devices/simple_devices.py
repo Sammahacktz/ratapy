@@ -24,6 +24,20 @@ from collections.abc import Callable, Sequence
 from ..boards import Arduino, PinLike
 from .complex_devices import AnalogInput, DigitalInput, DigitalOutput, PWM, Servo
 from ..protocol import RataError
+from .abstract_devices import (
+    AbstractBuzzer,
+    AbstractContinuousServo,
+    AbstractDCMotor,
+    AbstractDimmableLED,
+    AbstractLED,
+    AbstractLimitSwitch,
+    AbstractMosfet,
+    AbstractMotionSensor,
+    AbstractButton,
+    AbstractRelay,
+    AbstractRGBLED,
+    AbstractSolenoid,
+)
 
 
 class _PercentPWM(PWM):
@@ -58,7 +72,7 @@ class _PercentPWM(PWM):
         self._percent = percent
 
 
-class DimmableLED(_PercentPWM):
+class DimmableLED(_PercentPWM, AbstractDimmableLED):
     """An LED on a PWM pin -- like `LED`, but with brightness and fades.
 
         led = DimmableLED(pin=9)
@@ -105,7 +119,7 @@ class DimmableLED(_PercentPWM):
         self._percent = 0.0
 
 
-class DCMotor(_PercentPWM):
+class DCMotor(_PercentPWM, AbstractDCMotor):
     """A DC motor driven through a driver board's PWM/enable pin (one direction).
 
         motor = DCMotor(pin=9)
@@ -128,7 +142,7 @@ class DCMotor(_PercentPWM):
         self.speed(0)
 
 
-class Mosfet(_PercentPWM):
+class Mosfet(_PercentPWM, AbstractMosfet):
     """A MOSFET switching a DC load -- a silent `Relay` that can also do
     anything in between.
 
@@ -247,7 +261,7 @@ class TMP36(AnalogInput):
 
 
 
-class Button(DigitalInput):
+class Button(DigitalInput, AbstractButton):
     """A push button or switch.
 
         button = Button(pin=4)          # internal pull-up on by default
@@ -462,7 +476,7 @@ class Button(DigitalInput):
         return f"Button(pin={self.pin}{nc})"
 
 
-class LimitSwitch(Button):
+class LimitSwitch(Button, AbstractLimitSwitch):
     """An end-stop / limit switch -- a `Button` that is CLOSED at rest.
 
         stop = LimitSwitch(pin=5)
@@ -484,7 +498,7 @@ class LimitSwitch(Button):
         return f"LimitSwitch(pin={self.pin})"
 
 
-class MotionSensor(DigitalInput):
+class MotionSensor(DigitalInput, AbstractMotionSensor):
     """A PIR motion sensor.
 
         pir = MotionSensor(pin=3)
@@ -514,7 +528,7 @@ class MotionSensor(DigitalInput):
 
 
 
-class LED(DigitalOutput):
+class LED(DigitalOutput, AbstractLED):
     """An LED on a digital pin -- the friendly name for a plain on/off output.
 
         led = LED(pin=2)
@@ -528,7 +542,7 @@ class LED(DigitalOutput):
         return f"LED(pin={self.pin})"
 
 
-class Relay(DigitalOutput):
+class Relay(DigitalOutput, AbstractRelay):
     """A relay -- a mechanical on/off switch on any digital pin.
 
         relay = Relay(pin=7)
@@ -580,7 +594,7 @@ class Relay(DigitalOutput):
         return f"Relay(pin={self.pin})"
 
 
-class Buzzer(DigitalOutput):
+class Buzzer(DigitalOutput, AbstractBuzzer):
     """An active buzzer (the kind that beeps on its own when powered).
 
         buzzer = Buzzer(pin=8)
@@ -603,7 +617,7 @@ class Buzzer(DigitalOutput):
         return f"Buzzer(pin={self.pin})"
 
 
-class Solenoid(DigitalOutput):
+class Solenoid(DigitalOutput, AbstractSolenoid):
     """A solenoid / electromagnetic actuator -- an on/off pull on any digital pin.
 
         lock = Solenoid(pin=7)
@@ -649,7 +663,7 @@ class Solenoid(DigitalOutput):
         return f"Solenoid(pin={self.pin})"
 
 
-class ContinuousServo(Servo):
+class ContinuousServo(Servo, AbstractContinuousServo):
     """A continuous-rotation servo, where the 'angle' controls speed/direction.
 
         wheel = ContinuousServo(pin=9)
@@ -750,7 +764,7 @@ class MQ2:
         return self.do.value if self._alarm_when_high else not self.do.value
 
 
-class RGBLED:
+class RGBLED(AbstractRGBLED):
     """A common-cathode (default) or common-anode RGB LED on three PWM pins.
 
         rgb = RGBLED(red=9, green=10, blue=11)
