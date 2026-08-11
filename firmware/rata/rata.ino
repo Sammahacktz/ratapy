@@ -191,6 +191,7 @@ void onReceive(int count) {
   while (Wire.available() && k < sizeof(i2cIn)) i2cIn[k++] = (uint8_t)Wire.read();
   i2cInLen   = k;
   i2cInReady = true;
+  transport.discard();        // drop a reply the master stopped waiting for
 }
 
 void onRequest() {

@@ -260,7 +260,9 @@ def scan_i2c(bus: int = 1, first: int = 0x08, last: int = 0x77) -> list[Detected
             except Exception:
                 continue
             hexa = f"0x{addr:02X}"
-            link = I2CLink(bus=bus)
+            # Short timeout: something acknowledged here, but it may be a plain
+            # sensor rather than a RATA board -- don't stall the scan on each one.
+            link = I2CLink(bus=bus, timeout=0.25)
             try:
                 info = ping_via_link(link, addr)
                 found.append(Detected("i2c", hexa, board_from_pins(info.num_digital_pins), info))

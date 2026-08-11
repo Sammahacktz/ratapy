@@ -14,7 +14,7 @@ from typing import Final
 Address = int | str
 
 START_BYTE: Final = 0xAA
-PROTO_VERSION: Final = 6
+PROTO_VERSION: Final = 7
 MAX_PAYLOAD: Final = 32
 
 # Commands: master -> Arduino
@@ -36,6 +36,7 @@ RSP_PONG = 0x03
 RSP_VALUE = 0x04
 RSP_DEVICE = 0x05   # [index, id, type, nparams, params...] -- device config
 RSP_VALUES = 0x06   # [id, nbytes, bytes...] repeated -- batch read reply
+RSP_BUSY = 0x07     # I2C only: reply not ready yet, re-read (see I2CLink)
 
 # Device types
 DEV_DIGITAL_OUT = 0x01

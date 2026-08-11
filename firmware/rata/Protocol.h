@@ -18,7 +18,7 @@ namespace proto {
 const uint8_t START_BYTE   = 0xAA;
 const uint8_t MAX_PAYLOAD  = 32;      // per-frame payload cap (fits I2C buffers)
 const uint8_t MAX_VALUE_BYTES = 8;    // max bytes a read() can return (4x int16)
-const uint8_t PROTO_VERSION = 6;
+const uint8_t PROTO_VERSION = 7;
 
 // Commands: master -> Arduino
 enum Command : uint8_t {
@@ -42,6 +42,7 @@ enum Response : uint8_t {
   RSP_VALUE  = 0x04,  // payload: id, then 1..N value bytes (big-endian int16s)
   RSP_DEVICE = 0x05,  // payload: index, id, type, nparams, params... (device config)
   RSP_VALUES = 0x06,  // payload: [id, nbytes, bytes...] repeated (batch read reply)
+  RSP_BUSY   = 0x07,  // payload: none -- I2C only: reply not ready, master re-reads
 };
 
 // Device types (extend as new hardware is supported)

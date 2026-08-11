@@ -520,14 +520,20 @@ public:
 // the conversion runs in the BACKGROUND via update() -- the same trick the
 // stepper uses -- and readInto() returns the most recent completed value. A read
 // is therefore instant, and the temperature is at most one conversion stale.
+//
+// Bringing the 1-Wire bus up is itself slow (a ROM search plus a scratchpad
+// write, ~20 ms), so it does NOT happen in begin(): on I2C that would hold up
+// the ADD_DEVICE reply long past the master's read, which then sees no frame.
+// begin() only validates the pin; the first update() does the hardware.
 class DS18B20Device : public Device {
   OneWire*           _wire = nullptr;
   DallasTemperature* _sensors = nullptr;
   uint8_t            _pin = 0xFF;
   int16_t            _cached = INT16_MIN;   // tempC*100; INT16_MIN until 1st reading
   unsigned long      _startedAt = 0;
-  unsigned long      _waitMs = 750;         // set from the resolution in begin()
+  unsigned long      _waitMs = 750;         // set from the resolution in start()
   bool               _converting = false;
+  bool               _started = false;      // 1-Wire bus brought up yet?
 public:
   explicit DS18B20Device(uint8_t id) : Device(id) {}
   ~DS18B20Device() override { delete _sensors; delete _wire; }
@@ -536,17 +542,11 @@ public:
   bool begin(const uint8_t* params, uint8_t n) override {
     if (n < 1 || params[0] >= RATA_NUM_PINS) return false;
     _pin = params[0];
-    _wire = new OneWire(_pin);
-    _sensors = new DallasTemperature(_wire);
-    _sensors->begin();
-    _sensors->setResolution(12);                 // 0.0625 C steps, ~750 ms
-    _sensors->setWaitForConversion(false);       // don't block: we poll in update()
-    _waitMs = _sensors->millisToWaitForConversion(12);
-    kickOff();
-    return true;
+    return true;                                 // hardware deferred to update()
   }
 
   void update() override {
+    if (!_started) { start(); return; }          // one slow pass, then steady state
     if (!_sensors || !_converting) return;
     if (millis() - _startedAt < _waitMs) return; // not ready yet
     float c = _sensors->getTempCByIndex(0);      // reads the scratchpad (~15 ms)
@@ -563,8 +563,20 @@ public:
   }
 
 private:
+  // The slow part of setup, run from the first update() rather than begin().
+  void start() {
+    _started = true;                              // once, even if the bus is empty
+    _wire = new OneWire(_pin);
+    _sensors = new DallasTemperature(_wire);
+    _sensors->begin();
+    _sensors->setResolution(12);                 // 0.0625 C steps, ~750 ms
+    _sensors->setWaitForConversion(false);       // don't block: we poll in update()
+    _waitMs = _sensors->millisToWaitForConversion(12);
+    kickOff();
+  }
+
   void kickOff() {
-    _sensors->requestTemperatures();              // non-blocking (see begin)
+    _sensors->requestTemperatures();              // non-blocking (see start)
     _startedAt = millis();
     _converting = true;
   }

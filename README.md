@@ -1414,6 +1414,17 @@ SDA/SCL/GND to every Arduino's SDA/SCL/GND (a shared bus), with pull-up
 resistors on SDA and SCL. Keep I2C messages small — frames must fit the
 Arduino's 32-byte I2C buffer (they normally do).
 
+An I2C board prepares its reply between two bus transactions, so a slow sensor
+can make the answer arrive late — registering a `DS18B20` takes ~20 ms on the
+1-Wire bus, and reading one blocks the board for ~15 ms. `I2CLink` handles that
+by re-reading until the board answers, up to `timeout` (1 s by default), so you
+never see a half-read frame; raise it if you add something slower, or lower it
+to fail faster on a board you expect to be there:
+
+```python
+bus = I2CLink(bus=1, timeout=0.25)
+```
+
 > ## ⚠️ Use a level shifter — 5 V on a Pi pin can destroy it
 >
 > **A Raspberry Pi's GPIO is 3.3 V and is _not_ 5 V-tolerant. A 5 V Arduino
@@ -1515,6 +1526,7 @@ RATA fails loudly with readable messages instead of doing nothing.
 | `ValueError: mega has no pin 999 ...` | pin doesn't exist on that board | use a valid pin |
 | `RataError: timeout waiting for response` | the board didn't reply | wrong port, unplugged, or firmware not flashed / still booting |
 | `RataError: could not open ... Could not exclusively lock port` | another program already has the port | close the other script / control panel — only one program can drive a board over serial at a time |
+| `RataError: no reply from board 0x08 within 1s` | an I2C board never answered | check SDA/SCL/GND and the pull-ups, that the address matches the flashed one, and that the board runs the I2C firmware build |
 | `RataError: NACK: unknown device id` | commanding a device the board doesn't have | did you `register` / re-create it after a reset? |
 | `RataError: ... is full: mega supports at most 32 devices` | too many devices | you've hit the board's limit |
 | `UserWarning: firmware reports 70 digital pins, but uno expects 20` | wrong model class or wrong firmware | match `Uno/Mega/...` to the board you flashed |
@@ -1586,6 +1598,7 @@ rp.wait()                            # block until deferred commands have been s
 from ratapy.link import SerialLink, I2CLink
 SerialLink("/dev/ttyUSB1")           # one Arduino per cable
 I2CLink(bus=1)                       # one bus shared by many boards (distinct addresses)
+I2CLink(bus=1, timeout=0.25)         # how long to keep re-reading a busy board
 
 board.ping()                         # -> BoardInfo(version, device_count, max_devices, num_digital_pins)
 board.reset()                        # drop all devices on this board
